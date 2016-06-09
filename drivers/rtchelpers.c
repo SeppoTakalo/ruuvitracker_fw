@@ -13,7 +13,7 @@ void cmd_alarm(BaseSequentialStream *chp, int argc, char *argv[])
 
   (void)argv;
   if (argc < 1) {
-    goto ERROR;
+    goto ARG_ERROR;
   }
 
   if ((argc == 1) && (strcmp(argv[0], "get") == 0)){
@@ -28,12 +28,11 @@ void cmd_alarm(BaseSequentialStream *chp, int argc, char *argv[])
                             RTC_ALRMAR_MSK3 | RTC_ALRMAR_MSK2;
     rtcSetAlarm(&RTCD1, 0, &alarmspec);
     return;
-  }
-  else{
-    goto ERROR;
+  } else {
+    goto ARG_ERROR;
   }
 
-ERROR:
+ARG_ERROR:
   chprintf(chp, "Usage: alarm get\r\n");
   chprintf(chp, "       alarm set N\r\n");
   chprintf(chp, "where N is alarm time in seconds\r\n");
@@ -46,7 +45,7 @@ void cmd_date(BaseSequentialStream *chp, int argc, char *argv[])
   time_t unix_time;
 
   if (argc == 0) {
-    goto ERROR;
+    goto ARG_ERROR;
   }
 
   if ((argc == 1) && (strcmp(argv[0], "get") == 0)){
@@ -70,14 +69,14 @@ void cmd_date(BaseSequentialStream *chp, int argc, char *argv[])
       return;
     }
     else{
-      goto ERROR;
+      goto ARG_ERROR;
     }
   }
   else{
-    goto ERROR;
+    goto ARG_ERROR;
   }
 
-ERROR:
+ARG_ERROR:
   chprintf(chp, "Usage: date get\r\n");
   chprintf(chp, "       date set N\r\n");
   chprintf(chp, "where N is time in seconds sins Unix epoch\r\n");
@@ -93,7 +92,7 @@ void cmd_wakeup(BaseSequentialStream *chp, int argc, char *argv[])
 
   (void)argv;
   if (argc < 1) {
-    goto ERROR;
+    goto ARG_ERROR;
   }
 
   if ((argc == 1) && (strcmp(argv[0], "get") == 0)){
@@ -110,7 +109,7 @@ void cmd_wakeup(BaseSequentialStream *chp, int argc, char *argv[])
     return;
   }
 
-ERROR:
+ARG_ERROR:
   chprintf(chp, "Usage: wakeup get\r\n");
   chprintf(chp, "       wakeup set N\r\n");
   chprintf(chp, "where N is recurring alarm time in seconds\r\n");

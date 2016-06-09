@@ -49,7 +49,7 @@
 #define ENABLE_PORT GPIOC
 
 
-#define BUFF_SIZE	64
+#define BUFF_SIZE	256
 
 #define TIMEOUT_MS   5000        /* Default timeout 5s */
 #define TIMEOUT_HTTP 35000      /* Http timeout, 35s */
@@ -86,11 +86,9 @@ EVENTSOURCE_DECL(gsm_evt_sms_arrived);
 
 /* Modem Status */
 struct gsm_modem {
-    enum Power_mode power_mode;
     enum State state;
     BinarySemaphore waiting_reply;
     BinarySemaphore serial_sem;
-    volatile int raw_mode;
     enum Reply reply;
     int flags;
     enum CFUN cfun;
@@ -98,7 +96,6 @@ struct gsm_modem {
     char ap_name[64];
 };
 static struct gsm_modem gsm = {		/* Initial status */
-    .power_mode=POWER_OFF,
     .state = STATE_OFF,
 };
 
@@ -420,8 +417,11 @@ static void parse_network(char *line)
 {
     char network[64];
     /* Example: +COPS: 0,0,"Saunalahti" */
-    if (1 == sscanf(line, "+COPS: 0,0,\"%s", network)) {
-        *strchr(network,'"') = 0;
+    if (1 == sscanf(line, "+COPS: 0,0,\"%63s", network)) {
+        char *p = strchr(network,'"');
+        if (!p && (p > &network[63])) // Failed to find network name
+            return;
+        *p = '\0';
         _DEBUG("GSM: Registered to network %s\n", network);
         gsm.state = STATE_READY;
     }
@@ -612,14 +612,19 @@ void gsm_release_serial_port(void)
 int gsm_wait_cpy(const char *pattern, int timeout, char *line, size_t buf_size)
 {
     D_ENTER();
-    char buf[256];
-    int ret;
+    int ret = AT_ERROR;
     unsigned int i;
     msg_t c;
     int was_locked;
 
     _DEBUG("wait=%s\r\n", pattern);
     was_locked = gsm_request_serial_port();
+
+    char *buf = malloc(BUFF_SIZE);
+    if (!buf) {
+        _DEBUG("out of memory\r\n");
+        goto MEM_ERROR;
+    }
 
     i = 0;
     ret = AT_OK;
@@ -631,7 +636,7 @@ int gsm_wait_cpy(const char *pattern, int timeout, char *line, size_t buf_size)
             goto WAIT_END;
         }
         buf[i++] = (char)c;
-        buf[i] = 0;
+        buf[i++] = 0;
         _DEBUG("buf=%s, pattern=%s\r\n", buf, pattern);
         if (0 == strcmp("ERROR", buf)) {
             ret = AT_ERROR;
@@ -640,7 +645,7 @@ int gsm_wait_cpy(const char *pattern, int timeout, char *line, size_t buf_size)
         if (NULL == slre_match(0, pattern, buf, i)) { //Match
             break;
         }
-        if (i == 256) //Buffer full, start new
+        if (i == BUFF_SIZE) //Buffer full, start new
             i = 0;
         /**
          * This is bad! we can't do mathing like empty line and *then* OK, I hope nothing supposes this behaviour
@@ -651,7 +656,7 @@ int gsm_wait_cpy(const char *pattern, int timeout, char *line, size_t buf_size)
 
 
     if (line) {
-        strncpy(line, buf, sizeof(buf));
+        strncpy(line, buf, BUFF_SIZE);
         i = strlen(line);
         while (1) {
             if ( i == (buf_size-1) )
@@ -667,9 +672,12 @@ int gsm_wait_cpy(const char *pattern, int timeout, char *line, size_t buf_size)
         }
     }
 WAIT_END:
+    free(buf);
+MEM_ERROR:
     if (!was_locked)
         gsm_release_serial_port();
     D_EXIT();
+
     return ret;
 }
 

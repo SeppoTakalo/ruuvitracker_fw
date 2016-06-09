@@ -151,16 +151,17 @@ void gps_uart_write(const char *str)
 
 int gps_cmd(const char *cmd)
 {
-    char cmd_wchecksum[256];
-    char checksum = 0;
     if (strstr(cmd, "*") == NULL)
     {
+        char checksum;
+        char *cmd_wchecksum = malloc(256);
         // No checksum, add it (we suppose no starting $ either)
-        sprintf(cmd_wchecksum, "$%s*", cmd);
+        snprintf(cmd_wchecksum, 256, "$%s*", cmd);
         checksum = calculate_gps_checksum(cmd_wchecksum);
         sprintf(cmd_wchecksum, "$%s*%2x", cmd, checksum);
         gps_uart_write(cmd_wchecksum);
         _DEBUG("Sent '%s' to GPS\r\n", cmd_wchecksum);
+        free(cmd_wchecksum);
     }
     else
     {
@@ -435,8 +436,8 @@ static void parse_nmea_time_str(char *str, gps_datetime *dt)
     memcpy(tmp, str+4, 2);
     dt->sec = strtol(tmp, NULL, 10);
     memcpy(tmp, str+7, 3);
-    dt->msec = strtol(tmp, NULL, 10);
     tmp[3] = 0;
+    dt->msec = strtol(tmp, NULL, 10);
 }
 
 // Date string should be the following format: '140413'
