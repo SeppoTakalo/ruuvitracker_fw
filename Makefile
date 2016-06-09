@@ -218,3 +218,8 @@ endif
 
 RULESPATH = $(CHIBIOS)/os/ports/GCC/ARMCMx
 include $(RULESPATH)/rules.mk
+
+.PHONY:cppcheck
+cppcheck:
+	cppcheck $(IINCDIR) --enable=all --inconclusive --std=c99 -DCPPCHECK drivers
+
